@@ -1,0 +1,79 @@
+### Maven ###
+target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea/
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
+### Environment & Config ###
+# 環境設定檔案 (包含敏感資訊如密碼、API keys)
+application-dev.yml
+application-dev.yaml
+application-dev.properties
+application-prod.yml
+application-prod.yaml
+application-prod.properties
+application-test.yml
+application-test.yaml
+application-test.properties
+application-local.yml
+application-local.yaml
+application-local.properties
+.env
+.env.local
+.env.*.local
+
+### Logs ###
+# 應用程式和系統日誌
+*.log
+logs/
+log/
+
+### Database ###
+# 本地資料庫檔案
+*.db
+*.sqlite
+*.h2.db
+
+### RocketMQ ###
+# RocketMQ 本地存儲
+store/
+namesrv/
+
+### macOS ###
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+### Windows ###
+Thumbs.db
+ehthumbs.db
+Desktop.ini
