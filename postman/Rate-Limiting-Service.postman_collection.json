@@ -1,0 +1,180 @@
+{
+	"info": {
+		"_postman_id": "rate-limiting-service-collection",
+		"name": "Rate Limiting Service",
+		"description": "API collection for Rate Limiting Service - Backend Homework",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "apiKey",
+			"value": "test-api-key",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "1. Create Rate Limit",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"apiKey\": \"{{apiKey}}\",\n    \"limit\": 10,\n    \"windowSeconds\": 60\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/limits",
+					"host": ["{{baseUrl}}"],
+					"path": ["limits"]
+				},
+				"description": "Create or update a rate limit rule for an API key.\n\n- `apiKey`: The API key to limit (required)\n- `limit`: Max requests allowed (1 - 1,000,000)\n- `windowSeconds`: Time window in seconds (1 - 86400)"
+			},
+			"response": []
+		},
+		{
+			"name": "2. Check Rate Limit",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/check?apiKey={{apiKey}}",
+					"host": ["{{baseUrl}}"],
+					"path": ["check"],
+					"query": [
+						{
+							"key": "apiKey",
+							"value": "{{apiKey}}"
+						}
+					]
+				},
+				"description": "Check if a request is allowed and increment the counter.\n\nReturns:\n- 200 OK with `allowed: true` if under limit\n- 429 Too Many Requests if over limit\n- 401 Unauthorized if no apiKey provided\n\nHeaders returned:\n- X-RateLimit-Limit\n- X-RateLimit-Remaining\n- X-RateLimit-Reset\n- Retry-After (when blocked)"
+			},
+			"response": []
+		},
+		{
+			"name": "3. Query Usage",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/usage?apiKey={{apiKey}}",
+					"host": ["{{baseUrl}}"],
+					"path": ["usage"],
+					"query": [
+						{
+							"key": "apiKey",
+							"value": "{{apiKey}}"
+						}
+					]
+				},
+				"description": "Get current usage statistics for an API key.\n\nReturns:\n- `currentCount`: Current request count in window\n- `limit`: Max requests allowed\n- `remaining`: Requests remaining\n- `ttlSeconds`: Seconds until window resets"
+			},
+			"response": []
+		},
+		{
+			"name": "4. List All Limits",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/limits?page=0&size=10",
+					"host": ["{{baseUrl}}"],
+					"path": ["limits"],
+					"query": [
+						{
+							"key": "page",
+							"value": "0"
+						},
+						{
+							"key": "size",
+							"value": "10"
+						}
+					]
+				},
+				"description": "List all rate limit configurations with pagination.\n\nQuery parameters:\n- `page`: Page number (0-indexed, default: 0)\n- `size`: Page size (default: 10)"
+			},
+			"response": []
+		},
+		{
+			"name": "5. Delete Rate Limit",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/limits/{{apiKey}}",
+					"host": ["{{baseUrl}}"],
+					"path": ["limits", "{{apiKey}}"]
+				},
+				"description": "Delete a rate limit rule.\n\nReturns:\n- 204 No Content on success\n- 404 Not Found if rule doesn't exist"
+			},
+			"response": []
+		},
+		{
+			"name": "Check - No API Key (401)",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/check",
+					"host": ["{{baseUrl}}"],
+					"path": ["check"]
+				},
+				"description": "Test: Check without API key should return 401 Unauthorized"
+			},
+			"response": []
+		},
+		{
+			"name": "Check - Unknown Key (No Rule)",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/check?apiKey=unknown-key",
+					"host": ["{{baseUrl}}"],
+					"path": ["check"],
+					"query": [
+						{
+							"key": "apiKey",
+							"value": "unknown-key"
+						}
+					]
+				},
+				"description": "Test: Check with unknown API key should return allowed (no rule configured)"
+			},
+			"response": []
+		},
+		{
+			"name": "Create - Invalid Limit (400)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"apiKey\": \"invalid-test\",\n    \"limit\": 0,\n    \"windowSeconds\": 60\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/limits",
+					"host": ["{{baseUrl}}"],
+					"path": ["limits"]
+				},
+				"description": "Test: Create with invalid limit (0) should return 400 Bad Request"
+			},
+			"response": []
+		}
+	]
+}
