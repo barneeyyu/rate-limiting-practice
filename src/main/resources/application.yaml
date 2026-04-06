@@ -1,9 +1,35 @@
 spring:
   application:
-    name: demo
+    name: rate-limiting-service
 
-# define mysql properties here
+  datasource:
+    url: jdbc:mysql://localhost:3306/taskdb?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: taskuser
+    password: taskpass
+    driver-class-name: com.mysql.cj.jdbc.Driver
 
-# define redis properties here
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
 
-# define rocketmq properties here
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+rocketmq:
+  name-server: localhost:9876
+  producer:
+    group: rate-limit-producer-group
+    topic: rate-limit-events
+
+rate-limit:
+  cache:
+    caffeine-max-size: 10000
+    caffeine-ttl-seconds: 60
+    null-object-ttl-seconds: 30
+    redis-config-ttl-seconds: 300
