@@ -1,2 +1,9 @@
-
-
+CREATE TABLE IF NOT EXISTS rate_limit_config (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    api_key VARCHAR(255) NOT NULL UNIQUE,
+    request_limit INT NOT NULL,
+    window_seconds INT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_api_key (api_key)
+);
