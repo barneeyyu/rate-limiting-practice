@@ -120,7 +120,7 @@
 			"response": []
 		},
 		{
-			"name": "Check - No API Key (401)",
+			"name": "Check - No API Key (400)",
 			"request": {
 				"method": "GET",
 				"header": [],
@@ -129,7 +129,7 @@
 					"host": ["{{baseUrl}}"],
 					"path": ["check"]
 				},
-				"description": "Test: Check without API key should return 401 Unauthorized"
+				"description": "Test: Check without API key should return 400 Bad Request"
 			},
 			"response": []
 		},

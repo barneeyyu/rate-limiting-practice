@@ -91,7 +91,7 @@ Body:
 }
 ```
 
-**401 Unauthorized** (no apiKey parameter)
+**400 Bad Request** (no apiKey parameter)
 ```json
 {
   "error": "API key is required"

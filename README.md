@@ -112,7 +112,7 @@ Request → Caffeine (L1) → Redis (L2) → MySQL (L3)
 | Decision | Choice | Trade-off | Value |
 |----------|--------|-----------|-------|
 | **Failure Mode** | Fail-Open | May allow excess requests during outage | Prevents rate limiter from being SPOF |
-| **Missing API Key** | 401 Unauthorized | Less specific error info | Prevents user enumeration attacks |
+| **Missing API Key** | 400 Bad Request | Treats apiKey as required parameter, not auth credential | Clear REST semantics — missing param is client error |
 | **Pagination** | Offset-based | Less efficient for large datasets | Intuitive random page access for admin UI |
 
 ### Why These Choices?
@@ -127,10 +127,10 @@ Request → Caffeine (L1) → Redis (L2) → MySQL (L3)
 - When Redis is down, better to allow traffic than reject all
 - Monitoring alerts on failure, not silent blocking
 
-**401 over 404 for missing keys:**
-- Attackers can't enumerate valid API keys
-- Consistent with "unauthorized access" semantics
-- Security by obscurity as defense-in-depth
+**400 for missing apiKey:**
+- apiKey is a query parameter, not an auth credential
+- Missing required parameter = client error (400)
+- Clear REST semantics, easy for clients to understand
 
 ## Project Structure
 

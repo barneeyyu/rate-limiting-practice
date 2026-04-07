@@ -29,7 +29,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ApiKeyRequiredException.class)
     public ResponseEntity<ErrorResponse> handleApiKeyRequired(ApiKeyRequiredException ex) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ErrorResponse.of(ex.getMessage()));
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ErrorResponse.of(ex.getMessage()));
     }
 
     @ExceptionHandler(ConfigNotFoundException.class)

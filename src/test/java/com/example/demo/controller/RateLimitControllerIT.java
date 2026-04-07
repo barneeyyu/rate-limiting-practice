@@ -102,9 +102,9 @@ class RateLimitControllerIT {
     }
 
     @Test
-    void check_noApiKey_returns401() throws Exception {
+    void check_noApiKey_returns400() throws Exception {
         mockMvc.perform(get("/check"))
-            .andExpect(status().isUnauthorized())
+            .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.error").value("API key is required"));
     }
 
