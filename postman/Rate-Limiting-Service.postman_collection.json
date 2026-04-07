@@ -13,7 +13,7 @@
 		},
 		{
 			"key": "apiKey",
-			"value": "test-api-key",
+			"value": "test-key",
 			"type": "string"
 		}
 	],
