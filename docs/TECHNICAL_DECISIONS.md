@@ -253,6 +253,220 @@ Testcontainers：
 
 ---
 
+## 11. 未來可優化項目 (Future Enhancements)
+
+以下是目前設計中「知道可以做得更好，但在當前場景下尚未實作」的項目。記錄這些是為了說明技術債的存在，而非遺漏。
+
+### 11.1 Redis Fail-Open 完整實作
+
+**目前狀態：** 部分實作（RateLimiter 有處理 null，但 ConfigService 沒有 try-catch）
+
+**應該要：**
+```java
+// ConfigService.getConfig() 應該要這樣
+try {
+    Map<Object, Object> redisData = redisTemplate.opsForHash().entries(...);
+    if (!redisData.isEmpty()) {
+        return Optional.of(fromRedisHash(key, redisData));
+    }
+} catch (Exception e) {
+    log.warn("Redis failure, falling back to MySQL", e);
+}
+// Fallback to MySQL...
+```
+
+**為什麼還沒做：**
+- 目前是單機開發環境，Redis 不太會掛
+- 需要搭配監控告警才有意義
+- 完整的 Fail-Open 需要考慮 Circuit Breaker pattern
+
+**何時該做：**
+- 上 Production 之前
+- 當 Redis 開始有 HA 架構時
+
+---
+
+### 11.2 標準 Cache-Aside Pattern
+
+**目前狀態：** 寫入時是「更新 Cache」而非「刪除 Cache」
+
+```java
+// 目前的做法 (Write-Through)
+RateLimitConfig saved = repository.save(config);
+saveToRedis(saved);  // 更新 Redis
+
+// 標準 Cache-Aside 應該是
+RateLimitConfig saved = repository.save(config);
+redisTemplate.delete(key);  // 刪除 Redis，下次讀取時回填
+```
+
+**為什麼還沒改：**
+- 設定變更頻率極低（管理員偶爾操作）
+- 目前單實例，不一致窗口很小
+- 兩種做法在此場景差異不大
+
+**何時該做：**
+- 多實例部署時
+- 設定變更頻率變高時
+- 需要強一致性保證時
+
+**進階方案（更複雜但更可靠）：**
+- 延遲雙刪 (Delayed Double Delete)
+- 訂閱 MySQL Binlog (Canal/Debezium)
+
+---
+
+### 11.3 X-RateLimit-Reset Header 精確計算
+
+**目前狀態：** 寫死 `+60` 秒
+
+```java
+// 目前
+headers.set("X-RateLimit-Reset", String.valueOf(Instant.now().getEpochSecond() + 60));
+
+// 應該要
+headers.set("X-RateLimit-Reset", String.valueOf(Instant.now().getEpochSecond() + actualTtl));
+```
+
+**為什麼還沒做：**
+- 需要在 `CheckResponse` 加上 `ttlSeconds` 欄位
+- 需要從 `IncrementResult` 傳遞 TTL 到 Controller
+
+**何時該做：**
+- Client 需要精確的 retry 時間時
+- 這是個 bug，應該盡快修復
+
+---
+
+### 11.4 全域例外處理補完
+
+**目前狀態：** 只處理了業務異常，未處理基礎設施異常
+
+```java
+// 目前有處理
+@ExceptionHandler(RateLimitExceededException.class)   // 429
+@ExceptionHandler(ApiKeyRequiredException.class)      // 400
+@ExceptionHandler(ConfigNotFoundException.class)      // 404
+@ExceptionHandler(MethodArgumentNotValidException.class) // 400
+
+// 還沒處理
+@ExceptionHandler(DataAccessException.class)  // DB 錯誤 → 503
+@ExceptionHandler(Exception.class)            // 兜底 → 500（隱藏 stack trace）
+```
+
+**為什麼還沒做：**
+- 開發階段需要看到完整錯誤訊息
+- 尚未定義錯誤回應的標準格式
+
+**何時該做：**
+- 上 Production 之前（避免洩漏內部資訊）
+
+---
+
+### 11.5 Rate Limiter 演算法升級
+
+**目前狀態：** Fixed Window
+
+**可升級為：**
+
+| 演算法 | 優點 | 實作複雜度 |
+|--------|------|------------|
+| Sliding Window Counter | 消除邊界突波 | 中 |
+| Token Bucket | 允許短期突發 | 中 |
+| Sliding Window Log | 最精確 | 高（記憶體用量大） |
+
+**為什麼還沒做：**
+- Fixed Window 足以應付目前需求
+- 邊界突波問題在實務中影響有限
+
+**何時該做：**
+- 當 2x burst 問題真的造成困擾時
+- 有精確限流需求時（如計費系統）
+
+---
+
+### 11.6 可觀測性 (Observability)
+
+**目前狀態：** 只有基本的 log
+
+**應該加上：**
+
+```java
+// Micrometer Metrics
+@Timed("rate.limit.check")
+public CheckResponse check(String apiKey) { ... }
+
+// 自訂指標
+Counter.builder("rate.limit.blocked")
+    .tag("apiKey", apiKey)
+    .register(meterRegistry)
+    .increment();
+```
+
+**建議的監控指標：**
+- `rate_limit_check_total` — 總請求數
+- `rate_limit_blocked_total` — 被阻擋的請求數
+- `cache_hit_ratio` — 快取命中率 (Caffeine / Redis)
+- `redis_latency_seconds` — Redis 延遲
+
+**為什麼還沒做：**
+- 需要 Prometheus + Grafana 基礎設施
+- 開發階段用 log 足夠
+
+**何時該做：**
+- 上 Production 之前
+- 需要效能調優時
+
+---
+
+### 11.7 API Key 格式驗證
+
+**目前狀態：** 只驗證 `@NotBlank`
+
+```java
+// 目前
+@NotBlank(message = "apiKey is required")
+String apiKey
+
+// 可以加上
+@NotBlank
+@Size(min = 3, max = 64)
+@Pattern(regexp = "^[a-zA-Z0-9-_]+$", message = "apiKey contains invalid characters")
+String apiKey
+```
+
+**為什麼還沒做：**
+- 不確定 apiKey 的命名規範
+- 過度限制可能影響彈性
+
+**何時該做：**
+- 確定 apiKey 格式規範後
+- 有安全考量時（防止注入攻擊）
+
+---
+
+### 11.8 分頁最大值限制
+
+**目前狀態：** 沒有限制 `size` 參數上限
+
+```java
+// 目前
+@RequestParam(defaultValue = "10") int size
+
+// 應該要
+@RequestParam(defaultValue = "10") @Max(100) int size
+```
+
+**為什麼還沒做：**
+- 限流規則數量通常不多
+- 不太可能有人請求超大頁面
+
+**何時該做：**
+- 開放給外部使用時
+- 防止 DoS 攻擊
+
+---
+
 ## 總結
 
 ```
@@ -266,3 +480,18 @@ Testcontainers：
 │  5. 可測優先：Testcontainers 確保測試品質                    │
 └────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## 技術債清單 (Tech Debt Summary)
+
+| 項目 | 優先級 | 預估工時 | 何時該做 |
+|------|--------|----------|----------|
+| X-RateLimit-Reset 精確計算 | 🔴 高 | 30 min | 盡快 |
+| ConfigService Fail-Open | 🔴 高 | 20 min | 上線前 |
+| 全域例外處理補完 | 🟡 中 | 30 min | 上線前 |
+| Cache-Aside Pattern | 🟡 中 | 30 min | 多實例部署前 |
+| 可觀測性 Metrics | 🟡 中 | 2 hr | 上線前 |
+| API Key 格式驗證 | 🟢 低 | 10 min | 有需要時 |
+| 分頁最大值限制 | 🟢 低 | 5 min | 開放外部使用時 |
+| 演算法升級 | 🟢 低 | 4 hr | 有精確限流需求時 |
